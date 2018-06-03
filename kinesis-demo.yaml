@@ -1,0 +1,152 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CloudFormation Template for Kenisis Demo'
+Parameters:
+  BucketName:
+    Description: Name of Bucket where we can host our static website
+    Type: String
+
+Resources:
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref BucketName
+      AccessControl: PublicRead
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+    DeletionPolicy: Retain
+  BucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      PolicyDocument:
+        Id: MyPolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join 
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref S3Bucket
+                - /*
+      Bucket: !Ref S3Bucket
+
+  MyStream:
+    Type: "AWS::Kinesis::Stream"
+    Properties: 
+      Name: kinesis-demo
+      ShardCount: 1
+
+  BasicApplication:
+   Type: "AWS::KinesisAnalytics::Application"
+   Properties:
+     ApplicationName: "kenisis-demo-application"
+     ApplicationDescription: "Analytics for demo app"
+     ApplicationCode: "Example Application Code"
+     Inputs:
+       - NamePrefix: "exampleNamePrefix"
+         InputSchema:
+           RecordColumns:
+            - Name: "positionX"
+              SqlType: "VARCHAR(16)"
+              Mapping: "$.positionX"
+            - Name: "positionY"
+              SqlType: "VARCHAR(16)"
+              Mapping: "$.positionY"
+           RecordFormat:
+             RecordFormatType: "JSON"
+             MappingParameters:
+               JSONMappingParameters:
+                 RecordRowPath: "$"
+         KinesisStreamsInput:
+           ResourceARN: !GetAtt MyStream.Arn
+           RoleARN: !GetAtt KinesisAnalyticsRole.Arn
+
+  KinesisAnalyticsRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: kinesisanalytics.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: Open
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "*"
+                Resource: "*"
+
+  MyCognitoPool:      
+    Type: "AWS::Cognito::IdentityPool"
+    Properties:
+      IdentityPoolName: myCognitoPool
+      AllowUnauthenticatedIdentities: true
+
+  IamRole:
+   Type: "AWS::IAM::Role"
+   Properties:
+    RoleName: "kenisis-demo-role"
+    AssumeRolePolicyDocument:
+     Version: "2012-10-17"
+     Statement:
+       -
+         Effect: "Allow"
+         Action:
+           - "sts:AssumeRoleWithWebIdentity"
+         Condition: { "ForAnyValue:StringLike": {"cognito-identity.amazonaws.com:amr": "unauthenticated" },  "StringEquals": {"cognito-identity.amazonaws.com:aud": !Ref MyCognitoPool}}
+         Principal:
+           Federated:
+             - "cognito-identity.amazonaws.com"
+    Path: "/"
+    Policies:
+      -
+       PolicyName: main
+       PolicyDocument:
+         Version: "2012-10-17"
+         Statement:
+           -
+             Effect: "Allow"
+             Action:
+               - "mobileanalytics:PutEvents"
+               - "cognito-sync:*"
+             Resource: "*"
+           -
+             Effect: "Allow"
+             Action: "kinesis:Put*"
+             Resource: !GetAtt MyStream.Arn
+
+  IdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties: 
+      IdentityPoolId: !Ref MyCognitoPool
+      Roles:
+        unauthenticated: !GetAtt IamRole.Arn
+        authenticated: !GetAtt IamRole.Arn
+
+Outputs:
+  myCognitoPoolId:
+    Description: The id of the cognito pool
+    Value: !Ref MyCognitoPool
+  
+  WebsiteURL:
+    Value: !GetAtt 
+      - S3Bucket
+      - WebsiteURL
+    Description: URL for website hosted on S3
+  S3BucketSecureURL:
+    Value: !Join 
+      - ''
+      - - 'https://'
+        - !GetAtt 
+          - S3Bucket
+          - DomainName
+    Description: Name of S3 bucket to hold website content

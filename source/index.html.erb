@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Amazon Kinesis Demo Application</title>
+  <script>
+      window.myIdentityPoolId = "<%= ENV['POOL_ID'] %>";
+      window.region = "<%= ENV['REGION'] %>";
+  </script>
+</head>
+<body>
+  <div id="content">
+    <h1>Kenisis Demo</h1>
+    <div id="sphere"></div>
+    <ul>
+      <li>position x: <span id="positionX"></span></li>
+      <li>position y: <span id="positionY"></span></li>
+      <li>quadrant:   <span id="quadrant"></span></li>
+    </ul>
+  </div>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- Use the title from a page's frontmatter if it has one -->
+    <title><%= current_page.data.title || "Middleman" %></title>
+
+  </head>
+  <body>
+    <%= yield %>
+  </body>
+
+    <%= javascript_include_tag "https://sdk.amazonaws.com/js/aws-sdk-2.250.1.min.js" %>
+    <%= javascript_include_tag "site" %>
+    <%= stylesheet_link_tag "site" %>
+
+</html>
