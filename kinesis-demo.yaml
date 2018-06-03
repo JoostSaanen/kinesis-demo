@@ -15,7 +15,6 @@ Resources:
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: error.html
-    DeletionPolicy: Retain
   BucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
     Properties:
@@ -40,22 +39,34 @@ Resources:
       Name: kinesis-demo
       ShardCount: 1
 
+  MySecondStream:
+    Type: "AWS::Kinesis::Stream"
+    Properties: 
+      Name: kinesis-demo-second-stream
+      ShardCount: 1
+
   BasicApplication:
    Type: "AWS::KinesisAnalytics::Application"
    Properties:
      ApplicationName: "kenisis-demo-application"
      ApplicationDescription: "Analytics for demo app"
-     ApplicationCode: "Example Application Code"
+     ApplicationCode: "CREATE OR REPLACE STREAM \"DESTINATION_SQL_STREAM\" (ticker_symbol VARCHAR(4), ticker_symbol_count INTEGER);\nCREATE OR REPLACE PUMP \"STREAM_PUMP\" AS INSERT INTO \"DESTINATION_SQL_STREAM\"\nSELECT STREAM QUADRANT, COUNT(*) OVER TEN_SECOND_SLIDING_WINDOW AS ticker_symbol_count FROM \"SOURCE_SQL_STREAM_001\" WINDOW TEN_SECOND_SLIDING_WINDOW AS (PARTITION BY quadrant RANGE INTERVAL '10' SECOND PRECEDING);"
      Inputs:
-       - NamePrefix: "exampleNamePrefix"
+       - NamePrefix: "SOURCE_SQL_STREAM"
          InputSchema:
            RecordColumns:
-            - Name: "positionX"
-              SqlType: "VARCHAR(16)"
-              Mapping: "$.positionX"
-            - Name: "positionY"
-              SqlType: "VARCHAR(16)"
-              Mapping: "$.positionY"
+            - Name: "POSITIONX"
+              SqlType: "INTEGER"
+              Mapping: "$.POSITIONX"
+            - Name: "POSITIONY"
+              SqlType: "INTEGER"
+              Mapping: "$.POSITIONY"
+            - Name: "QUADRANT"
+              SqlType: "VARCHAR(4)"
+              Mapping: "$.QUADRANT"
+            - Name: "GUID"
+              SqlType: "DOUBLE"
+              Mapping: "$.GUID"                            
            RecordFormat:
              RecordFormatType: "JSON"
              MappingParameters:
@@ -64,6 +75,18 @@ Resources:
          KinesisStreamsInput:
            ResourceARN: !GetAtt MyStream.Arn
            RoleARN: !GetAtt KinesisAnalyticsRole.Arn
+
+  BasicApplicationOutputs:
+    Type: "AWS::KinesisAnalytics::ApplicationOutput"
+    DependsOn: BasicApplication
+    Properties:
+      ApplicationName: !Ref BasicApplication
+      Output:
+        DestinationSchema:
+          RecordFormatType: "CSV"
+        KinesisStreamsOutput:
+          ResourceARN: !GetAtt MySecondStream.Arn
+          RoleARN: !GetAtt KinesisAnalyticsRole.Arn
 
   KinesisAnalyticsRole:
     Type: "AWS::IAM::Role"
@@ -84,6 +107,7 @@ Resources:
               - Effect: Allow
                 Action: "*"
                 Resource: "*"
+
 
   MyCognitoPool:      
     Type: "AWS::Cognito::IdentityPool"
