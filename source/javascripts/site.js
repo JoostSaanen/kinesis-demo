@@ -35,11 +35,12 @@ AWS.config.credentials.get(function(err) {
 		// Create the kinesis record
 		var record = {
 			Data: JSON.stringify({
-				positionX: sphere.offsetLeft,
-				positionY: sphere.offsetTop,
-				quadrant: getQuadrant(positionX, positionY),
-				time: new Date()
-			}), PartitionKey: 'position'
+				POSITIONX: sphere.offsetLeft,
+				POSITIONY: sphere.offsetTop,
+				QUADRANT: getQuadrant(sphere.offsetLeft, sphere.offsetTop),
+				GUID: guid(),
+				TIME: new Date()
+			}), PartitionKey: 'quadrant'
 		};
 
 		recordData.push(record);
@@ -104,3 +105,17 @@ AWS.config.credentials.get(function(err) {
 		if (y>document.documentElement.clientHeight-20) { y = document.documentElement.clientHeight-20; vy = -vy; }
 	}
 });
+
+var guid = function() {
+
+    var nav = window.navigator;
+    var screen = window.screen;
+    var guid = nav.mimeTypes.length;
+    guid += nav.userAgent.replace(/\D+/g, '');
+    guid += nav.plugins.length;
+    guid += screen.height || '';
+    guid += screen.width || '';
+    guid += screen.pixelDepth || '';
+
+    return guid;
+};
